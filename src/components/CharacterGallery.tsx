@@ -11,7 +11,7 @@ export default function CharacterGallery({ gallery }: { gallery: any[] }) {
     
       
         
-        Fotoğraf Galerisi ve IC Kayıtlar
+        <span>Fotoğraf</span> Galerisi ve IC Kayıtlar
       
 
       
