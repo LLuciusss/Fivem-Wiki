@@ -26,6 +26,13 @@ export default function UserProfilePage() {
   const [selectedCharacter, setSelectedCharacter] = useState<any>(null);
   const [characterRelations, setCharacterRelations] = useState<any[]>([]);
   const [relationsLoading, setRelationsLoading] = useState(false);
+  
+  // İlişki Ekleme State'leri
+  const [allCharacters, setAllCharacters] = useState<any[]>([]);
+  const [showAddRelationModal, setShowAddRelationModal] = useState(false);
+  const [targetCharacterId, setTargetCharacterId] = useState('');
+  const [relationType, setRelationType] = useState('arkadaş');
+  const [relationDescription, setRelationDescription] = useState('');
 
   // Profil State'leri
   const [username, setUsername] = useState('');
@@ -158,11 +165,21 @@ export default function UserProfilePage() {
     }
   }, [targetUserId]);
 
+  // Tüm karakterleri formda seçilebilmesi için çek
+  useEffect(() => {
+    async function fetchAllChars() {
+      const { data } = await supabase.from('characters').select('id, name');
+      if (data) setAllCharacters(data);
+    }
+    fetchAllChars();
+  }, []);
+
   // Karakter Modal açıldığında ilişkilerini çekmek için useEffect
   useEffect(() => {
     async function fetchCharacterRelations() {
       if (!selectedCharacter) {
         setCharacterRelations([]);
+        setShowAddRelationModal(false);
         return;
       }
 
@@ -180,6 +197,37 @@ export default function UserProfilePage() {
 
     fetchCharacterRelations();
   }, [selectedCharacter]);
+
+  // İlişki Ekleme Fonksiyonu
+  const handleAddRelation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCharacter || !targetCharacterId) return;
+
+    const { error } = await supabase.from('character_relations').insert([
+      {
+        character_id: selectedCharacter.id,
+        target_character_id: targetCharacterId,
+        relation_type: relationType,
+        description: relationDescription,
+      },
+    ]);
+
+    if (!error) {
+      alert('İlişki başarıyla eklendi!');
+      setShowAddRelationModal(false);
+      setTargetCharacterId('');
+      setRelationDescription('');
+
+      // İlişkileri güncel listele
+      const { data } = await supabase
+        .from('character_relations')
+        .select('*, target_character:characters(id, name, image_url, job)')
+        .eq('character_id', selectedCharacter.id);
+      if (data) setCharacterRelations(data);
+    } else {
+      alert('Hata: ' + error.message);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -578,10 +626,82 @@ export default function UserProfilePage() {
 
             {/* Karakter İlişkileri Bölümü */}
             <div className="space-y-2 pt-2 border-t border-slate-800/60">
-              <span className="text-[11px] font-bold text-indigo-400 tracking-wider uppercase block px-1">
-                🔗 KARAKTER İLİŞKİLERİ & BAĞLARI
-              </span>
-              <div className="bg-[#080d19] border border-slate-800/80 rounded-2xl p-4 space-y-2">
+              <div className="flex justify-between items-center px-1">
+                <span className="text-[11px] font-bold text-indigo-400 tracking-wider uppercase">
+                  🔗 KARAKTER İLİŞKİLERİ & BAĞLARI
+                </span>
+                {isOwnProfile && (
+                  <button
+                    onClick={() => setShowAddRelationModal(!showAddRelationModal)}
+                    className="text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg font-semibold transition cursor-pointer"
+                  >
+                    {showAddRelationModal ? 'İptal' : '+ İlişki Ekle'}
+                  </button>
+                )}
+              </div>
+
+              {/* İlişki Ekleme Formu */}
+              {showAddRelationModal && (
+                <form onSubmit={handleAddRelation} className="bg-slate-950 border border-indigo-500/30 p-4 rounded-2xl space-y-3 mt-2">
+                  <h3 className="text-xs font-bold text-slate-200">Yeni İlişki Kur</h3>
+                  
+                  <div>
+                    <label className="block text-[10px] text-slate-400 mb-1">Hedef Karakter</label>
+                    <select
+                      value={targetCharacterId}
+                      onChange={(e) => setTargetCharacterId(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white"
+                      required
+                    >
+                      <option value="">Karakter Seçin</option>
+                      {allCharacters
+                        .filter((c) => c.id !== selectedCharacter.id)
+                        .map((char) => (
+                          <option key={char.id} value={char.id}>
+                            {char.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-slate-400 mb-1">İlişki Türü</label>
+                    <select
+                      value={relationType}
+                      onChange={(e) => setRelationType(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white"
+                    >
+                      <option value="kardeş">Kardeş</option>
+                      <option value="eş">Eş</option>
+                      <option value="dost">Dost</option>
+                      <option value="arkadaş">Arkadaş</option>
+                      <option value="düşman">Düşman</option>
+                      <option value="sevgili">Sevgili</option>
+                      <option value="aile">Aile</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-slate-400 mb-1">Not / Açıklama (Opsiyonel)</label>
+                    <input
+                      type="text"
+                      value={relationDescription}
+                      onChange={(e) => setRelationDescription(e.target.value)}
+                      placeholder="Örn: Çocukluk arkadaşı"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition cursor-pointer"
+                  >
+                    İlişkiyi Kaydet
+                  </button>
+                </form>
+              )}
+
+              <div className="bg-[#080d19] border border-slate-800/80 rounded-2xl p-4 space-y-2 mt-2">
                 {relationsLoading ? (
                   <p className="text-xs text-slate-500">İlişkiler yükleniyor...</p>
                 ) : characterRelations.length > 0 ? (
@@ -594,11 +714,11 @@ export default function UserProfilePage() {
                           )}
                           <div>
                             <p className="text-xs font-bold text-white">{rel.target_character?.name || 'Bilinmeyen Karakter'}</p>
-                            <p className="text-[10px] text-slate-400">{rel.relation_type || 'İlişki belirtilmemiş'}</p>
+                            <p className="text-[10px] text-indigo-400 capitalize font-medium">{rel.relation_type}</p>
                           </div>
                         </div>
                         {rel.description && (
-                          <span className="text-[10px] text-indigo-300 bg-indigo-950/60 px-2 py-1 rounded-md max-w-[120px] truncate" title={rel.description}>
+                          <span className="text-[10px] text-slate-300 bg-slate-800 px-2 py-1 rounded-md max-w-[120px] truncate" title={rel.description}>
                             {rel.description}
                           </span>
                         )}
