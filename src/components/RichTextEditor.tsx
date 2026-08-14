@@ -40,40 +40,54 @@ export default function RichTextEditor({ content, onChange }: EditorProps) {
   };
 
   return (
-    
+    <div className="border border-blue-900/60 rounded-xl overflow-hidden bg-black/50">
       {/* Editor Menü Çubuğu */}
-      
-         editor.chain().focus().toggleBold().run()}
+      <div className="flex flex-wrap items-center gap-1 p-2 border-b border-blue-900/60 bg-blue-950/20">
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleBold().run()}
           className={`p-2 rounded hover:bg-blue-900/50 ${editor.isActive('bold') ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
         >
-          
-        
-         editor.chain().focus().toggleItalic().run()}
+          <Bold className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleItalic().run()}
           className={`p-2 rounded hover:bg-blue-900/50 ${editor.isActive('italic') ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
         >
-          
-        
-         editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          <Italic className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           className={`p-2 rounded hover:bg-blue-900/50 ${editor.isActive('heading', { level: 2 }) ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
         >
-          
-        
-         editor.chain().focus().toggleBulletList().run()}
+          <Heading2 className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
           className={`p-2 rounded hover:bg-blue-900/50 ${editor.isActive('bulletList') ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
         >
-          
-        
-         editor.chain().focus().toggleBlockquote().run()}
+          <List className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
           className={`p-2 rounded hover:bg-blue-900/50 ${editor.isActive('blockquote') ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
         >
-          
-        
-        
-          
-        
-      
+          <Quote className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={addImage}
+          className="p-2 rounded hover:bg-blue-900/50 text-gray-400"
+        >
+          <ImageIcon className="w-4 h-4" />
+        </button>
+      </div>
 
-      
-    
+      <EditorContent editor={editor} />
+    </div>
   );
 }
