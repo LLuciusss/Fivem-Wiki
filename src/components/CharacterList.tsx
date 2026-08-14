@@ -133,18 +133,22 @@ export default function CharacterList({ characters, currentUserId }: CharacterLi
 
                 {/* Alt Kısım */}
                 <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full bg-slate-800 overflow-hidden">
+                  {/* Profil Yönlendirme Linki */}
+                  <Link
+                    href={`/profile/${char.profiles?.id}`}
+                    className="flex items-center gap-2 group/profile cursor-pointer"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-slate-800 overflow-hidden ring-1 ring-slate-700/50 group-hover/profile:ring-indigo-500 transition">
                       {char.profiles?.avatar_url ? (
                         <img src={char.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-[9px] text-slate-400">@</div>
                       )}
                     </div>
-                    <span className="text-slate-400 font-medium text-[11px]">
+                    <span className="text-slate-400 group-hover/profile:text-indigo-400 font-medium text-[11px] transition">
                       @{char.profiles?.username || 'Vatandaş'}
                     </span>
-                  </div>
+                  </Link>
 
                   {/* Sadece karakter sahibi ise "Düzenle" butonunu göster */}
                   {canEdit && (
