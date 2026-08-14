@@ -34,7 +34,7 @@ export default function ProfileView({ profile, character }: { profile: any, char
                   {isPlaying ? '⏸' : '▶'}
                 
                 
-                  Tema Müziği
+                  <span>Tema Müziği</span>
                 
                 {isPlaying && }
               
@@ -43,10 +43,10 @@ export default function ProfileView({ profile, character }: { profile: any, char
 
           
             
-              DOSYA BİLGİLERİ
+              <span>DOSYA BİLGİLERİ
               
                 
-                  Meslek
+                 <span> Meslek</span>
                   {character?.job || 'Bilinmiyor'}
                 
                 
@@ -57,7 +57,7 @@ export default function ProfileView({ profile, character }: { profile: any, char
             
 
             
-              Karakter Hikayesi
+              <span>Karakter Hikayesi</span>
               
                 {character?.story ? (
                   

@@ -36,7 +36,7 @@ export default function Navbar() {
             
           
           
-            LORE WIKI
+            <span>LORE WIKI</span>
           
         
 
