@@ -20,7 +20,6 @@ export default function SettingsPage() {
       
       setUserId(user.id);
       
-      // Profil ve karakter verisini çek
       const { data: profile } = await supabase.from('profiles').select('banner_url, profile_music, characters(*)').eq('id', user.id).single();
       
       if (profile) {
@@ -44,13 +43,11 @@ export default function SettingsPage() {
     e.preventDefault();
     setLoading(true);
 
-    // Profil tablosunu güncelle (Müzik ve Banner)
     await supabase.from('profiles').update({
       profile_music: formData.profile_music,
       banner_url: formData.banner_url
     }).eq('id', userId);
 
-    // Karakter tablosunu Upsert yap (Varsa güncelle, yoksa ekle)
     const { data: existingChar } = await supabase.from('characters').select('id').eq('user_id', userId).single();
     
     const charPayload = {
@@ -59,7 +56,7 @@ export default function SettingsPage() {
       job: formData.job,
       gang: formData.gang,
       birth_date: formData.birth_date,
-      story: formData.story // HTML destekli yazdırabilirsin
+      story: formData.story
     };
 
     if (existingChar) {
