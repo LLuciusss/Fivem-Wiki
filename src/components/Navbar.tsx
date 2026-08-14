@@ -7,7 +7,7 @@ import { User as UserIcon, Settings, LogOut, BookOpen } from 'lucide-react';
 
 export default function Navbar() {
   const supabase = createClient();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
