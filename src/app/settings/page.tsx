@@ -72,7 +72,7 @@ export default function SettingsPage() {
     router.push(`/profile/${userId}`);
   };
 
-  if (loading) return Yükleniyor...;
+  if (loading) return <div>Yükleniyor...</div>;
 
   return (
     
