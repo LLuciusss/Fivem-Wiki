@@ -20,9 +20,9 @@ export default function FileUpload({
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const handleFileChange = async (e: React.ChangeEvent) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
     try {
       setUploading(true);
