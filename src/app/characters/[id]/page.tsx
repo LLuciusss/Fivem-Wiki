@@ -88,7 +88,7 @@ export default function UserProfilePage() {
         setSocialSteam(profData.social_steam || '');
       }
 
-      // 3. TAM OTOMATİK DISCORD BANNER & AVATAR SENKRONİZASYONU
+      // 3. TAM OTOMATİK DISCORD BANNER & AVATAR SENKRONİZASYONU (Sadece kendi profilindeyse)
       if (user && user.id === targetUserId && session?.provider_token) {
         try {
           const res = await fetch('https://discord.com/api/v10/users/@me', {
@@ -103,6 +103,8 @@ export default function UserProfilePage() {
             if (discordUser.banner) {
               const ext = discordUser.banner.startsWith('a_') ? 'gif' : 'png';
               currentBanner = `https://cdn.discordapp.com/banners/${discordUser.id}/${discordUser.banner}.${ext}?size=1024`;
+            } else {
+              currentBanner = ''; // Discord'da banner yoksa boş bırak
             }
 
             if (discordUser.avatar) {
@@ -118,7 +120,7 @@ export default function UserProfilePage() {
               id: user.id,
               username: profData?.username || user.user_metadata?.custom_claims?.global_name || 'Vatandaş',
               avatar_url: currentAvatar,
-              banner_url: currentBanner,
+              banner_url: currentBanner || null, // Veritabanına null olarak kaydet
               theme_color: currentTheme,
               bio: profData?.bio || '',
               social_discord: profData?.social_discord || '',
@@ -132,6 +134,11 @@ export default function UserProfilePage() {
         } catch (err) {
           console.error('Otomatik Discord senkronizasyon hatası:', err);
         }
+      }
+
+      // Veritabanından gelen banner_url "EMPTY" veya boş string/null ise state'i temizle
+      if (!currentBanner || currentBanner === 'EMPTY') {
+        currentBanner = '';
       }
 
       setAvatarUrl(currentAvatar);
@@ -162,7 +169,7 @@ export default function UserProfilePage() {
       id: currentUser.id,
       username,
       avatar_url: avatarUrl,
-      banner_url: bannerUrl,
+      banner_url: bannerUrl ? bannerUrl : null, // Boşsa null kaydet
       theme_color: themeColor,
       bio,
       social_discord: socialDiscord,
@@ -197,6 +204,9 @@ export default function UserProfilePage() {
     );
   }
 
+  // Banner geçerli bir URL mi kontrolü (NULL, boş veya EMPTY değilse görsel gösterilir)
+  const hasValidBanner = bannerUrl && bannerUrl.trim() !== '' && bannerUrl !== 'EMPTY';
+
   return (
     <main className="min-h-screen bg-slate-950 p-6 md:p-12 text-slate-100 max-w-5xl mx-auto space-y-8 relative">
       {/* Üst Navigasyon & Butonlar */}
@@ -227,14 +237,18 @@ export default function UserProfilePage() {
         {/* Sol Kolon: Discord Tarzı Profil Kartı */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl relative">
-            {/* Banner Görseli */}
+            {/* Banner Görseli veya Varsayılan Renk/Gradient */}
             <div 
-              className="h-36 w-full bg-cover bg-center transition-all"
+              className="h-36 w-full bg-cover bg-center transition-all relative"
               style={{ 
-                backgroundImage: bannerUrl ? `url(${bannerUrl})` : 'none',
-                backgroundColor: themeColor 
+                backgroundImage: hasValidBanner ? `url(${bannerUrl})` : 'none',
+                backgroundColor: themeColor || '#4f46e5'
               }}
-            />
+            >
+              {!hasValidBanner && (
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-950/80 via-slate-900/60 to-slate-950/90" />
+              )}
+            </div>
 
             {/* Avatar */}
             <div className="px-6 relative flex justify-between items-end -mt-12 mb-4">
@@ -339,6 +353,7 @@ export default function UserProfilePage() {
                   type="text"
                   value={bannerUrl}
                   onChange={(e) => setBannerUrl(e.target.value)}
+                  placeholder="Boş bırakırsanız tema rengi veya varsayılan stil görünür"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
