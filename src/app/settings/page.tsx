@@ -7,7 +7,7 @@ export default function SettingsPage() {
   const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: '', job: '', gang: '', birth_date: '', story: '', profile_music: '', banner_url: ''
