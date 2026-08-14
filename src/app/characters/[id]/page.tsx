@@ -22,8 +22,10 @@ export default function UserProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Büyük Açılır Görünüm (Modal) State'i
+  // Büyük Açılır Görünüm (Modal) State'i ve Karakter İlişkileri
   const [selectedCharacter, setSelectedCharacter] = useState<any>(null);
+  const [characterRelations, setCharacterRelations] = useState<any[]>([]);
+  const [relationsLoading, setRelationsLoading] = useState(false);
 
   // Profil State'leri
   const [username, setUsername] = useState('');
@@ -156,6 +158,29 @@ export default function UserProfilePage() {
     }
   }, [targetUserId]);
 
+  // Karakter Modal açıldığında ilişkilerini çekmek için useEffect
+  useEffect(() => {
+    async function fetchCharacterRelations() {
+      if (!selectedCharacter) {
+        setCharacterRelations([]);
+        return;
+      }
+
+      setRelationsLoading(true);
+      const { data, error } = await supabase
+        .from('character_relations')
+        .select('*, target_character:characters(id, name, image_url, job)')
+        .eq('character_id', selectedCharacter.id);
+
+      if (!error && data) {
+        setCharacterRelations(data);
+      }
+      setRelationsLoading(false);
+    }
+
+    fetchCharacterRelations();
+  }, [selectedCharacter]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -214,7 +239,7 @@ export default function UserProfilePage() {
             >
               {isEditing ? 'Düzenlemeyi Kapat' : '✏️ Profili Düzenle'}
             </button>
-            
+
             <button
               onClick={handleSignOut}
               className="px-4 py-2 text-xs font-semibold bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 rounded-xl transition cursor-pointer flex items-center gap-1.5"
@@ -348,7 +373,7 @@ export default function UserProfilePage() {
               {/* Sosyal Medya Alanları */}
               <div className="border-t border-slate-800/80 pt-3 space-y-2">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Sosyal Medya Adresleri</span>
-                
+
                 <input
                   type="text"
                   value={socialDiscord}
@@ -481,7 +506,7 @@ export default function UserProfilePage() {
                   alt={selectedCharacter.name}
                   className="w-full h-64 sm:h-80 object-cover"
                 />
-                
+
                 <button
                   onClick={() => setSelectedCharacter(null)}
                   className="absolute top-3 right-3 z-10 w-8 h-8 bg-slate-950/70 hover:bg-black text-slate-300 hover:text-white rounded-full flex items-center justify-center border border-slate-700/50 transition backdrop-blur-md cursor-pointer"
@@ -547,6 +572,41 @@ export default function UserProfilePage() {
                   <span className="text-xs bg-slate-800/80 text-slate-300 border border-slate-700/50 px-3 py-1.5 rounded-xl font-medium inline-flex items-center gap-1.5">
                     💪 Yapı: {selectedCharacter.physical_build}
                   </span>
+                )}
+              </div>
+            </div>
+
+            {/* Karakter İlişkileri Bölümü */}
+            <div className="space-y-2 pt-2 border-t border-slate-800/60">
+              <span className="text-[11px] font-bold text-indigo-400 tracking-wider uppercase block px-1">
+                🔗 KARAKTER İLİŞKİLERİ & BAĞLARI
+              </span>
+              <div className="bg-[#080d19] border border-slate-800/80 rounded-2xl p-4 space-y-2">
+                {relationsLoading ? (
+                  <p className="text-xs text-slate-500">İlişkiler yükleniyor...</p>
+                ) : characterRelations.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {characterRelations.map((rel) => (
+                      <div key={rel.id} className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {rel.target_character?.image_url && (
+                            <img src={rel.target_character.image_url} alt="" className="w-8 h-8 rounded-lg object-cover" />
+                          )}
+                          <div>
+                            <p className="text-xs font-bold text-white">{rel.target_character?.name || 'Bilinmeyen Karakter'}</p>
+                            <p className="text-[10px] text-slate-400">{rel.relation_type || 'İlişki belirtilmemiş'}</p>
+                          </div>
+                        </div>
+                        {rel.description && (
+                          <span className="text-[10px] text-indigo-300 bg-indigo-950/60 px-2 py-1 rounded-md max-w-[120px] truncate" title={rel.description}>
+                            {rel.description}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 italic">Bu karakterin kayıtlı bir ilişkisi bulunmuyor.</p>
                 )}
               </div>
             </div>
