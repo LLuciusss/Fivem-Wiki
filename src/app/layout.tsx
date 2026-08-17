@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "FiveM Wiki",
-  description: "Şehrin en kapsamlı karakter veritabanı ve wiki platformu",
+  description: "FiveM'in en kapsamlı karakter veritabanı ve wiki platformlarından birisi",
 };
 
 export default function RootLayout({
