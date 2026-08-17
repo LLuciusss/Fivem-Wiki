@@ -39,6 +39,7 @@ export default function EditCharacterPage() {
   // Karakter form alanları
   const [formData, setFormData] = useState({
     name: '',
+    image_url: '',
     job: '',
     gang: '',
     birth_date: '',
@@ -81,6 +82,7 @@ export default function EditCharacterPage() {
 
       setFormData({
         name: charData.name || '',
+        image_url: charData.image_url || '',
         job: charData.job || '',
         gang: charData.gang || '',
         birth_date: charData.birth_date || '',
@@ -242,6 +244,31 @@ export default function EditCharacterPage() {
                 required
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
               />
+            </div>
+
+            {/* Görsel URL Alanı ve Önizleme */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300">Karakter Görseli (Image URL)</label>
+              <div className="flex gap-4 items-center">
+                <input
+                  type="url"
+                  name="image_url"
+                  placeholder="https://ornek.com/gorsel.jpg"
+                  value={formData.image_url}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+                {formData.image_url && (
+                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shrink-0">
+                    <img 
+                      src={formData.image_url} 
+                      alt="Önizleme" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} 
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
