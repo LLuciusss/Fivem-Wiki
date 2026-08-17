@@ -28,9 +28,15 @@ export default function EditCharacterPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  
   const [allCharacters, setAllCharacters] = useState<any[]>([]);
   const [characterRelations, setCharacterRelations] = useState<any[]>([]);
   
+  // Çoklu Fotoğraflar Listesi ve Yeni URL Input'u
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [newUrlInput, setNewUrlInput] = useState('');
+
   // Yeni ilişki ekleme form state'leri
   const [selectedTargetId, setSelectedTargetId] = useState('');
   const [selectedRelationType, setSelectedRelationType] = useState('arkadaş');
@@ -39,7 +45,6 @@ export default function EditCharacterPage() {
   // Karakter form alanları
   const [formData, setFormData] = useState({
     name: '',
-    image_url: '',
     job: '',
     gang: '',
     birth_date: '',
@@ -82,19 +87,28 @@ export default function EditCharacterPage() {
 
       setFormData({
         name: charData.name || '',
-        image_url: charData.image_url || '',
         job: charData.job || '',
         gang: charData.gang || '',
-        birth_date: charData.birth_date || '',
-        birth_place: charData.birth_place || '',
-        current_city: charData.current_city || '',
+        birth_date: charData.birth_date || charData.birthDate || '',
+        birth_place: charData.birth_place || charData.birthPlace || '',
+        current_city: charData.current_city || charData.currentCity || '',
         height: charData.height || '',
         weight: charData.weight || '',
-        hair_color: charData.hair_color || '',
-        eye_color: charData.eye_color || '',
-        physical_build: charData.physical_build || '',
+        hair_color: charData.hair_color || charData.hairColor || '',
+        eye_color: charData.eye_color || charData.eyeColor || '',
+        physical_build: charData.physical_build || charData.physicalBuild || '',
         story: charData.story || '',
       });
+
+      // Çoklu resimleri veya eski tekil resmi listeye dahil et
+      let imgs: string[] = [];
+      if (Array.isArray(charData.image_urls) && charData.image_urls.length > 0) {
+        imgs = charData.image_urls;
+      } else {
+        const oldImg = charData.image_url || charData.image || charData.photo_url || charData.photo;
+        if (oldImg) imgs.push(oldImg);
+      }
+      setImageUrls(imgs);
 
       // 2. Sistemdeki diğer karakterleri çek (Kendisi hariç)
       const { data: charsData } = await supabase
@@ -106,7 +120,7 @@ export default function EditCharacterPage() {
         setAllCharacters(charsData);
       }
 
-      // 3. Mevcut ilişkileri çek (Doğru FK hint ile)
+      // 3. Mevcut ilişkileri çek
       const { data: relsData } = await supabase
         .from('character_relations')
         .select('*, target_character:characters!target_character_id(id, name, image_url)')
@@ -128,6 +142,64 @@ export default function EditCharacterPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Cihazdan Fotoğraf Yükleme Fonksiyonu
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+
+    try {
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${characterId}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        // Supabase Storage Bucket'ına Yükle ('character-images' bucket adı)
+        const { error: uploadError } = await supabase.storage
+          .from('character-images')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          console.error('Yükleme Hatası:', uploadError.message);
+          alert(`Resim yüklenemedi: ${file.name}`);
+          continue;
+        }
+
+        // Yüklenen Resmin Public URL'sini Al
+        const { data: publicUrlData } = supabase.storage
+          .from('character-images')
+          .getPublicUrl(filePath);
+
+        if (publicUrlData?.publicUrl) {
+          uploadedUrls.push(publicUrlData.publicUrl);
+        }
+      }
+
+      setImageUrls((prev) => [...prev, ...uploadedUrls]);
+    } catch (err: any) {
+      alert('Dosya yüklenirken bir sorun oluştu.');
+    } finally {
+      setUploading(false);
+      e.target.value = ''; // Input'u sıfırla
+    }
+  };
+
+  // URL İle Fotoğraf Ekleme
+  const handleAddUrl = () => {
+    if (!newUrlInput.trim()) return;
+    setImageUrls((prev) => [...prev, newUrlInput.trim()]);
+    setNewUrlInput('');
+  };
+
+  // Fotoğraf Silme
+  const handleRemoveImage = (indexToRemove: number) => {
+    setImageUrls((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
   // Yeni İlişki Ekleme Fonksiyonu
   const handleAddRelation = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -136,13 +208,11 @@ export default function EditCharacterPage() {
       return;
     }
 
-    // Kendisiyle ilişki kurmasını engelle
     if (selectedTargetId === characterId) {
       alert('Bir karakter kendisiyle ilişki kuramaz!');
       return;
     }
 
-    // 1. Adım: Veritabanına ekle
     const { error: insertError } = await supabase
       .from('character_relations')
       .insert([
@@ -159,7 +229,6 @@ export default function EditCharacterPage() {
       return;
     }
 
-    // 2. Adım: Güncel ilişkileri tekrar çek (Doğru FK hint ile)
     const { data: relsData, error: fetchError } = await supabase
       .from('character_relations')
       .select('*, target_character:characters!target_character_id(id, name, image_url)')
@@ -194,9 +263,15 @@ export default function EditCharacterPage() {
     e.preventDefault();
     setSaving(true);
 
+    const updatedData = {
+      ...formData,
+      image_urls: imageUrls,
+      image_url: imageUrls[0] || null, // Geriye dönük uyumluluk için ilk görsel
+    };
+
     const { error } = await supabase
       .from('characters')
-      .update(formData)
+      .update(updatedData)
       .eq('id', characterId);
 
     setSaving(false);
@@ -230,6 +305,80 @@ export default function EditCharacterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-[#0e1322] border border-slate-800/90 rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl">
+          
+          {/* FOTOĞRAF YÖNETİMİ BÖLÜMÜ (Çoklu Fotoğraf & Yükleme) */}
+          <div className="space-y-4 pb-6 border-b border-slate-800">
+            <h2 className="text-sm font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+              🖼️ Karakter Fotoğrafları ({imageUrls.length})
+            </h2>
+
+            {/* Yüklenmiş/Eklenmiş Resimler Galerisi */}
+            {imageUrls.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {imageUrls.map((url, idx) => (
+                  <div key={idx} className="relative group rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 h-32">
+                    <img src={url} alt={`Karakter Resim ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(idx)}
+                      className="absolute top-2 right-2 w-7 h-7 bg-red-600/90 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition"
+                      title="Sil"
+                    >
+                      ✕
+                    </button>
+                    {idx === 0 && (
+                      <span className="absolute bottom-2 left-2 text-[10px] bg-indigo-600/90 text-white px-2 py-0.5 rounded-md">
+                        Kapak
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Fotoğraf Ekleme Seçenekleri (Dosya ve URL) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {/* Cihazdan Yükleme */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300 block">
+                  📁 Cihazdan / Dosyadan Yükle
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer cursor-pointer border border-slate-800 rounded-xl bg-slate-900/50 p-1"
+                />
+                {uploading && <p className="text-xs text-indigo-400">Resim yükleniyor, lütfen bekleyin...</p>}
+              </div>
+
+              {/* URL İle Ekleme */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300 block">
+                  🔗 Görsel URL'si İle Ekle
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://i.imgur.com/..."
+                    value={newUrlInput}
+                    onChange={(e) => setNewUrlInput(e.target.value)}
+                    className="flex-1 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddUrl}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition"
+                  >
+                    Ekle
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Temel Bilgiler */}
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-indigo-400 uppercase tracking-wider">Genel Bilgiler</h2>
@@ -244,31 +393,6 @@ export default function EditCharacterPage() {
                 required
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
               />
-            </div>
-
-            {/* Görsel URL Alanı ve Önizleme */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300">Karakter Görseli (Image URL)</label>
-              <div className="flex gap-4 items-center">
-                <input
-                  type="url"
-                  name="image_url"
-                  placeholder="https://ornek.com/gorsel.jpg"
-                  value={formData.image_url}
-                  onChange={handleChange}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
-                />
-                {formData.image_url && (
-                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shrink-0">
-                    <img 
-                      src={formData.image_url} 
-                      alt="Önizleme" 
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} 
-                    />
-                  </div>
-                )}
-              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -487,8 +611,8 @@ export default function EditCharacterPage() {
           {/* Kaydetme Butonu */}
           <button
             type="submit"
-            disabled={saving}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-indigo-600/20"
+            disabled={saving || uploading}
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-indigo-600/20 disabled:opacity-50 cursor-pointer"
           >
             {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
           </button>
