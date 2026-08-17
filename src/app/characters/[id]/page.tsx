@@ -55,10 +55,10 @@ export default function CharacterDetailPage() {
       }
       setImages(imgs);
 
-      // İlişkileri çek
+      // İlişkileri çek (Doğru FK hint ile güncellendi)
       const { data: relData } = await supabase
         .from('character_relations')
-        .select('*, target_character:characters(id, name, image_url, job)')
+        .select('*, target_character:characters!target_character_id(id, name, image_url, job)')
         .eq('character_id', charData.id);
 
       if (relData) {
