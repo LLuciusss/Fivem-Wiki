@@ -4,14 +4,15 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'FiveM Wiki',
   description: 'FiveM karakter arşivi ve hikaye yönetim sistemi.',
+  metadataBase: new URL('https://fivem-wiki.vercel.app'), // metadataBase eklenmesi URL çözünürlüğü için kritiktir
   openGraph: {
     title: 'FiveM Wiki',
     description: 'FiveM karakter arşivi ve hikaye yönetim sistemi.',
-    url: 'https://fivem-wiki.vercel.app', // Kendi sitenin güncel linki
+    url: 'https://fivem-wiki.vercel.app',
     siteName: 'FiveM Wiki',
     images: [
       {
-        url: '/fivemwiki.png', // public klasöründeki dosya yolu
+        url: 'https://fivem-wiki.vercel.app/fivemwiki.png', // Tam URL
         width: 1200,
         height: 630,
         alt: 'FiveM Wiki Önizleme Görseli',
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'FiveM Wiki',
     description: 'FiveM karakter arşivi ve hikaye yönetim sistemi.',
-    images: ['/fivemwiki.png'],
+    images: ['https://fivem-wiki.vercel.app/fivemwiki.png'], // Tam URL
   },
 };
 
