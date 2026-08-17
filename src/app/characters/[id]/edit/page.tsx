@@ -1,21 +1,42 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
+import { useState, useEffect } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+const RELATION_TYPES = [
+  'kardeş',
+  'eş',
+  'dost',
+  'arkadaş',
+  'düşman',
+  'sevgili',
+  'aile',
+  'görev arkadaşı'
+];
+
 export default function EditCharacterPage() {
-  const router = useRouter();
   const params = useParams();
-  const characterId = params?.id as string;
-  const supabase = createClient();
+  const router = useRouter();
+  const characterId = params.id as string;
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [allCharacters, setAllCharacters] = useState<any[]>([]);
+  const [characterRelations, setCharacterRelations] = useState<any[]>([]);
+  
+  // Yeni ilişki ekleme form state'leri
+  const [selectedTargetId, setSelectedTargetId] = useState('');
+  const [selectedRelationType, setSelectedRelationType] = useState('arkadaş');
+  const [relationDescription, setRelationDescription] = useState('');
 
-  // Form Verileri
+  // Karakter form alanları (Mevcut alanlar korunarak)
   const [formData, setFormData] = useState({
     name: '',
     job: '',
@@ -31,132 +52,132 @@ export default function EditCharacterPage() {
     story: '',
   });
 
-  // Çoklu Fotoğraflar Listesi ve Yeni URL Input'u
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [newUrlInput, setNewUrlInput] = useState('');
-
-  // Karakter Verisini Getir
   useEffect(() => {
-    async function fetchCharacter() {
-      if (!characterId) return;
+    async function fetchEditData() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
 
-      const { data, error } = await supabase
+      // 1. Karakteri çek ve yetki kontrolü yap
+      const { data: charData, error } = await supabase
         .from('characters')
         .select('*')
         .eq('id', characterId)
         .single();
 
-      if (error || !data) {
-        alert('Karakter bulunamadı!');
+      if (error || !charData) {
+        alert('Karakter bulunamadı.');
         router.push('/');
         return;
       }
 
-      setFormData({
-        name: data.name || '',
-        job: data.job || '',
-        gang: data.gang || '',
-        birth_date: data.birth_date || data.birthDate || '',
-        birth_place: data.birth_place || data.birthPlace || '',
-        current_city: data.current_city || data.currentCity || '',
-        height: data.height || '',
-        weight: data.weight || '',
-        hair_color: data.hair_color || data.hairColor || '',
-        eye_color: data.eye_color || data.eyeColor || '',
-        physical_build: data.physical_build || data.physicalBuild || '',
-        story: data.story || '',
-      });
-
-      // Eski tekli resim varsa onu da listeye dahil et
-      let imgs: string[] = [];
-      if (Array.isArray(data.image_urls) && data.image_urls.length > 0) {
-        imgs = data.image_urls;
-      } else {
-        const oldImg = data.image_url || data.image || data.photo_url || data.photo;
-        if (oldImg) imgs.push(oldImg);
+      if (charData.user_id !== session.user.id) {
+        alert('Bu karakteri düzenleme yetkiniz yok!');
+        router.push(`/characters/${characterId}`);
+        return;
       }
 
-      setImageUrls(imgs);
+      setFormData({
+        name: charData.name || '',
+        job: charData.job || '',
+        gang: charData.gang || '',
+        birth_date: charData.birth_date || '',
+        birth_place: charData.birth_place || '',
+        current_city: charData.current_city || '',
+        height: charData.height || '',
+        weight: charData.weight || '',
+        hair_color: charData.hair_color || '',
+        eye_color: charData.eye_color || '',
+        physical_build: charData.physical_build || '',
+        story: charData.story || '',
+      });
+
+      // 2. Sistemdeki diğer karakterleri çek (Kendisi hariç)
+      const { data: charsData } = await supabase
+        .from('characters')
+        .select('id, name, image_url')
+        .neq('id', characterId);
+
+      if (charsData) {
+        setAllCharacters(charsData);
+      }
+
+      // 3. Mevcut ilişkileri çek
+      const { data: relsData } = await supabase
+        .from('character_relations')
+        .select('*, target_character:characters(id, name, image_url)')
+        .eq('character_id', characterId);
+
+      if (relsData) {
+        setCharacterRelations(relsData);
+      }
+
       setLoading(false);
     }
 
-    fetchCharacter();
-  }, [characterId]);
+    if (characterId) {
+      fetchEditData();
+    }
+  }, [characterId, router]);
 
-  // Cihazdan Fotoğraf Yükleme Fonksiyonu
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-    setUploading(true);
+  // Yeni İlişki Ekleme Fonksiyonu
+  const handleAddRelation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTargetId) {
+      alert('Lütfen bir karakter seçin.');
+      return;
+    }
 
-    try {
-      const uploadedUrls: string[] = [];
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${characterId}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        // Supabase Storage Bucket'ına Yükle
-        const { error: uploadError } = await supabase.storage
-          .from('character-images')
-          .upload(filePath, file);
-
-        if (uploadError) {
-          console.error('Yükleme Hatası:', uploadError.message);
-          alert(`Resim yüklenemedi: ${file.name}`);
-          continue;
+    const { data, error } = await supabase
+      .from('character_relations')
+      .insert([
+        {
+          character_id: characterId,
+          target_character_id: selectedTargetId,
+          relation_type: selectedRelationType,
+          description: relationDescription,
         }
+      ])
+      .select('*, target_character:characters(id, name, image_url)');
 
-        // Yüklenen Resmin Public URL'sini Al
-        const { data: publicUrlData } = supabase.storage
-          .from('character-images')
-          .getPublicUrl(filePath);
-
-        if (publicUrlData?.publicUrl) {
-          uploadedUrls.push(publicUrlData.publicUrl);
-        }
-      }
-
-      setImageUrls((prev) => [...prev, ...uploadedUrls]);
-    } catch (err: any) {
-      alert('Dosya yüklenirken bir sorun oluştu.');
-    } finally {
-      setUploading(false);
-      e.target.value = ''; // Input'u sıfırla
+    if (error) {
+      alert('İlişki eklenirken hata oluştu: ' + error.message);
+    } else if (data) {
+      setCharacterRelations([...characterRelations, data[0]]);
+      setSelectedTargetId('');
+      setRelationDescription('');
+      setSelectedRelationType('arkadaş');
     }
   };
 
-  // URL İle Fotoğraf Ekleme
-  const handleAddUrl = () => {
-    if (!newUrlInput.trim()) return;
-    setImageUrls((prev) => [...prev, newUrlInput.trim()]);
-    setNewUrlInput('');
+  // İlişki Silme Fonksiyonu
+  const handleDeleteRelation = async (relationId: string) => {
+    const { error } = await supabase
+      .from('character_relations')
+      .delete()
+      .eq('id', relationId);
+
+    if (!error) {
+      setCharacterRelations(characterRelations.filter(r => r.id !== relationId));
+    } else {
+      alert('İlişki silinemedi.');
+    }
   };
 
-  // Fotoğraf Silme
-  const handleRemoveImage = (indexToRemove: number) => {
-    setImageUrls((prev) => prev.filter((_, idx) => idx !== indexToRemove));
-  };
-
-  // Güncelleme İşlemini Kaydet
+  // Genel Güncelleme Kaydetme
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
-    const updatedData = {
-      ...formData,
-      image_urls: imageUrls,
-      // Geriye dönük uyumluluk için ilk resmi image_url olarak da kaydedelim
-      image_url: imageUrls[0] || null,
-      updated_at: new Date().toISOString(),
-    };
-
     const { error } = await supabase
       .from('characters')
-      .update(updatedData)
+      .update(formData)
       .eq('id', characterId);
 
     setSaving(false);
@@ -164,249 +185,182 @@ export default function EditCharacterPage() {
     if (error) {
       alert('Güncelleme sırasında hata oluştu: ' + error.message);
     } else {
-      alert('Karakter başarıyla güncellendi!');
-      router.push('/');
-      router.refresh();
+      router.push(`/characters/${characterId}`);
     }
   };
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 p-8 flex items-center justify-center text-slate-300">
-        Karakter verileri yükleniyor...
-      </main>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
+        Düzenleme paneli yükleniyor...
+      </div>
     );
   }
 
   return (
     <main className="min-h-screen bg-slate-950 p-6 md:p-12 text-slate-100">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Üst Başlık & Geri Dön */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-6">
-          <div>
-            <h1 className="text-3xl font-extrabold text-white">Karakter Düzenle</h1>
-            <p className="text-sm text-slate-400">{formData.name || 'Karakter Bilgileri'}</p>
-          </div>
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div className="flex justify-between items-center pb-4 border-b border-slate-800">
           <Link
-            href="/"
-            className="px-4 py-2 text-sm bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl transition"
+            href={`/characters/${characterId}`}
+            className="text-xs font-semibold bg-slate-900 border border-slate-800 hover:border-indigo-500/50 px-4 py-2 rounded-xl text-slate-300 transition flex items-center gap-2"
           >
-            ← İptal ve Geri Dön
+            ← Karakter Sayfasına Dön
           </Link>
+          <h1 className="text-xl font-black text-white">Karakter Dosyasını Düzenle</h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* FOTOĞRAF YÖNETİMİ BÖLÜMÜ */}
-          <div className="bg-[#0e1322] border border-slate-800 p-6 rounded-3xl space-y-5">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              🖼️ Karakter Fotoğrafları ({imageUrls.length})
-            </h2>
+        <form onSubmit={handleSubmit} className="bg-[#0e1322] border border-slate-800/90 rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl">
+          {/* Temel Bilgiler */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-bold text-indigo-400 uppercase tracking-wider">Genel Bilgiler</h2>
+            
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300">Karakter Adı</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+              />
+            </div>
 
-            {/* Yüklenmiş/Eklenmiş Resimler Galerisi */}
-            {imageUrls.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {imageUrls.map((url, idx) => (
-                  <div key={idx} className="relative group rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 h-32">
-                    <img src={url} alt={`Karakter Resim ${idx + 1}`} className="w-full h-full object-cover" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300">Meslek</label>
+                <input
+                  type="text"
+                  name="job"
+                  value={formData.job}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300">Oluşum / Gang</label>
+                <input
+                  type="text"
+                  name="gang"
+                  value={formData.gang}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* İlişkiler Yönetim Paneli */}
+          <div className="space-y-4 pt-6 border-t border-slate-800">
+            <h2 className="text-sm font-bold text-indigo-400 uppercase tracking-wider">Karakter İlişkileri & Bağları</h2>
+            
+            {/* Mevcut İlişkiler Listesi */}
+            <div className="space-y-2">
+              {characterRelations.length > 0 ? (
+                characterRelations.map((rel) => (
+                  <div key={rel.id} className="flex items-center justify-between bg-slate-900/90 border border-slate-800 p-3 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      {rel.target_character?.image_url && (
+                        <img src={rel.target_character.image_url} alt="" className="w-10 h-10 rounded-lg object-cover bg-slate-950" />
+                      )}
+                      <div>
+                        <p className="text-xs font-bold text-white">{rel.target_character?.name}</p>
+                        <p className="text-[11px] text-indigo-400 capitalize font-medium">Bağ: {rel.relation_type} {rel.description && `- ${rel.description}`}</p>
+                      </div>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => handleRemoveImage(idx)}
-                      className="absolute top-2 right-2 w-7 h-7 bg-red-600/90 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition"
-                      title="Sil"
+                      onClick={() => handleDeleteRelation(rel.id)}
+                      className="text-xs bg-red-950/50 hover:bg-red-900/80 text-red-300 border border-red-800/50 px-3 py-1.5 rounded-lg transition"
                     >
-                      ✕
+                      Kaldır
                     </button>
-                    {idx === 0 && (
-                      <span className="absolute bottom-2 left-2 text-[10px] bg-indigo-600/90 text-white px-2 py-0.5 rounded-md">
-                        Kapak
-                      </span>
-                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              ) : (
+                <p className="text-xs text-slate-500 italic">Henüz eklenmiş bir ilişki yok.</p>
+              )}
+            </div>
 
-            {/* Fotoğraf Ekleme Seçenekleri */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-800/80">
-              {/* Cihazdan Yükleme */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300 block">
-                  📁 Cihazdan / Dosyadan Yükle
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileUpload}
-                  disabled={uploading}
-                  className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer cursor-pointer border border-slate-800 rounded-xl bg-slate-900/50 p-1"
-                />
-                {uploading && <p className="text-xs text-indigo-400">Resim yükleniyor, lütfen bekleyin...</p>}
-              </div>
-
-              {/* URL İle Ekleme */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300 block">
-                  🔗 Görsel URL'si İle Ekle
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="https://i.imgur.com/..."
-                    value={newUrlInput}
-                    onChange={(e) => setNewUrlInput(e.target.value)}
-                    className="flex-1 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-white outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddUrl}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition"
+            {/* Yeni İlişki Ekleme Formu */}
+            <div className="bg-slate-900/60 border border-slate-800/80 p-4 rounded-2xl space-y-3">
+              <p className="text-xs font-bold text-slate-300">➕ Yeni İlişki Ekle</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] text-slate-400">Hedef Karakter</label>
+                  <select
+                    value={selectedTargetId}
+                    onChange={(e) => setSelectedTargetId(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                   >
-                    Ekle
-                  </button>
+                    <option value="">Karakter Seçin...</option>
+                    {allCharacters.map((char) => (
+                      <option key={char.id} value={char.id}>
+                        {char.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] text-slate-400">İlişki Türü</label>
+                  <select
+                    value={selectedRelationType}
+                    onChange={(e) => setSelectedRelationType(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white capitalize focus:outline-none focus:border-indigo-500"
+                  >
+                    {RELATION_TYPES.map((type) => (
+                      <option key={type} value={type} className="capitalize">
+                        {type}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-400">Açıklama / Not (Opsiyonel)</label>
+                <input
+                  type="text"
+                  placeholder="Örn: Eski ortaklar, kan bağı vb."
+                  value={relationDescription}
+                  onChange={(e) => setRelationDescription(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddRelation}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 rounded-xl transition"
+              >
+                İlişkiyi Listeye Ekle
+              </button>
             </div>
           </div>
 
-          {/* TEMEL BİLGİLER */}
-          <div className="bg-[#0e1322] border border-slate-800 p-6 rounded-3xl space-y-4">
-            <h2 className="text-lg font-bold text-white">👤 Temel Bilgiler</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Ad Soyad *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-3 text-xs text-white outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Meslek</label>
-                <input
-                  type="text"
-                  value={formData.job}
-                  onChange={(e) => setFormData({ ...formData, job: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-3 text-xs text-white outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Oluşum / Çete</label>
-                <input
-                  type="text"
-                  value={formData.gang}
-                  onChange={(e) => setFormData({ ...formData, gang: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-3 text-xs text-white outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* FİZİKSEL & KİŞİSEL BİLGİLER */}
-          <div className="bg-[#0e1322] border border-slate-800 p-6 rounded-3xl space-y-4">
-            <h2 className="text-lg font-bold text-white">📋 Detaylı Özellikler</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Doğum Tarihi</label>
-                <input
-                  type="text"
-                  value={formData.birth_date}
-                  onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-2.5 text-xs text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Doğum Yeri</label>
-                <input
-                  type="text"
-                  value={formData.birth_place}
-                  onChange={(e) => setFormData({ ...formData, birth_place: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-2.5 text-xs text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Bulunduğu Şehir</label>
-                <input
-                  type="text"
-                  value={formData.current_city}
-                  onChange={(e) => setFormData({ ...formData, current_city: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-2.5 text-xs text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Boy</label>
-                <input
-                  type="text"
-                  value={formData.height}
-                  onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-2.5 text-xs text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Kilo</label>
-                <input
-                  type="text"
-                  value={formData.weight}
-                  onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-2.5 text-xs text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Saç Rengi</label>
-                <input
-                  type="text"
-                  value={formData.hair_color}
-                  onChange={(e) => setFormData({ ...formData, hair_color: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-2.5 text-xs text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Göz Rengi</label>
-                <input
-                  type="text"
-                  value={formData.eye_color}
-                  onChange={(e) => setFormData({ ...formData, eye_color: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-2.5 text-xs text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Vücut Yapısı</label>
-                <input
-                  type="text"
-                  value={formData.physical_build}
-                  onChange={(e) => setFormData({ ...formData, physical_build: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl p-2.5 text-xs text-white outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* HİKAYE & BİYOGRAFİ */}
-          <div className="bg-[#0e1322] border border-slate-800 p-6 rounded-3xl space-y-3">
-            <h2 className="text-lg font-bold text-white">📖 Hikaye / Biyografi</h2>
+          {/* Biyografi / Hikaye Alanı */}
+          <div className="space-y-2 pt-6 border-t border-slate-800">
+            <h2 className="text-sm font-bold text-indigo-400 uppercase tracking-wider">Karakter Hikayesi</h2>
             <textarea
-              rows={8}
+              name="story"
+              rows={6}
               value={formData.story}
-              onChange={(e) => setFormData({ ...formData, story: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-2xl p-4 text-xs sm:text-sm text-white outline-none leading-relaxed"
-              placeholder="Karakterinizin hikayesini yazın..."
+              onChange={handleChange}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-sm text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
 
-          {/* KAYDET BUTONU */}
-          <div className="flex justify-end gap-4">
-            <button
-              type="submit"
-              disabled={saving || uploading}
-              className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/30 transition disabled:opacity-50 cursor-pointer"
-            >
-              {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-            </button>
-          </div>
+          {/* Kaydet Butonu */}
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-indigo-600/20"
+          >
+            {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+          </button>
         </form>
       </div>
     </main>
