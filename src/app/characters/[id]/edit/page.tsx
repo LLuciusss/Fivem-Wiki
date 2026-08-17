@@ -289,7 +289,7 @@ export default function EditCharacterPage() {
               </div>
             )}
 
-            {/* URL İle Fotoğraf Ekleme Alanı */}
+            {/* URL İle görsel Ekleme Alanı */}
             <div className="space-y-2 pt-2">
               <label className="text-xs font-semibold text-slate-300 block">
                 🔗 Görsel URL'si İle Ekle
@@ -352,7 +352,7 @@ export default function EditCharacterPage() {
               </div>
             </div>
 
-            {/* Fiziksel ve Kişisel Diğer Alanlar */}
+            {/* Fiziksel ve Kişisel  Alanlar */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-300">Doğum Tarihi</label>
@@ -440,7 +440,7 @@ export default function EditCharacterPage() {
             </div>
           </div>
 
-          {/* İlişkiler Yönetim Paneli */}
+          {/* İlişkiler Yönetme Paneli */}
           <div className="space-y-4 pt-6 border-t border-slate-800">
             <h2 className="text-sm font-bold text-indigo-400 uppercase tracking-wider">Karakter İlişkileri & Bağları</h2>
             
