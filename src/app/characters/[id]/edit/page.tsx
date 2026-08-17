@@ -36,7 +36,7 @@ export default function EditCharacterPage() {
   const [selectedRelationType, setSelectedRelationType] = useState('arkadaş');
   const [relationDescription, setRelationDescription] = useState('');
 
-  // Karakter form alanları (Mevcut alanlar korunarak)
+  // Karakter form alanları
   const [formData, setFormData] = useState({
     name: '',
     job: '',
@@ -126,7 +126,7 @@ export default function EditCharacterPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Yeni İlişki Ekleme Fonksiyonu (Çakışma Hatası Çözülmüş Hali)
+  // Yeni İlişki Ekleme Fonksiyonu
   const handleAddRelation = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!selectedTargetId) {
@@ -150,7 +150,7 @@ export default function EditCharacterPage() {
           description: relationDescription || null,
         }
       ])
-      .select('*, target_character:characters(id, name, image_url)')
+      .select('*, target_character:characters!target_character_id(id, name, image_url)')
       .single();
 
     if (error) {
@@ -251,6 +251,93 @@ export default function EditCharacterPage() {
                   type="text"
                   name="gang"
                   value={formData.gang}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* Fiziksel ve Kişisel Diğer Alanlar */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300">Doğum Tarihi</label>
+                <input
+                  type="text"
+                  name="birth_date"
+                  value={formData.birth_date}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300">Doğum Yeri</label>
+                <input
+                  type="text"
+                  name="birth_place"
+                  value={formData.birth_place}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300">Yaşadığı Şehir</label>
+                <input
+                  type="text"
+                  name="current_city"
+                  value={formData.current_city}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300">Boy</label>
+                <input
+                  type="text"
+                  name="height"
+                  value={formData.height}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300">Kilo</label>
+                <input
+                  type="text"
+                  name="weight"
+                  value={formData.weight}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300">Saç Rengi</label>
+                <input
+                  type="text"
+                  name="hair_color"
+                  value={formData.hair_color}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300">Göz Rengi</label>
+                <input
+                  type="text"
+                  name="eye_color"
+                  value={formData.eye_color}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="space-y-2 col-span-2 md:col-span-1">
+                <label className="text-xs font-semibold text-slate-300">Fiziksel Yapı</label>
+                <input
+                  type="text"
+                  name="physical_build"
+                  value={formData.physical_build}
                   onChange={handleChange}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
                 />
