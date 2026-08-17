@@ -292,13 +292,19 @@ export default function CharacterDetailPage() {
               {characterRelations && characterRelations.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {characterRelations.map((rel: any) => (
-                    <div key={rel.id} className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between">
+                    <Link
+                      key={rel.id}
+                      href={`/characters/${rel.target_character?.id}`}
+                      className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/50 p-2.5 rounded-xl flex items-center justify-between transition group"
+                    >
                       <div className="flex items-center gap-2">
                         {rel.target_character?.image_url && (
                           <img src={rel.target_character.image_url} alt="" className="w-8 h-8 rounded-lg object-contain bg-slate-950" />
                         )}
                         <div>
-                          <p className="text-xs font-bold text-white">{rel.target_character?.name || 'Bilinmeyen Karakter'}</p>
+                          <p className="text-xs font-bold text-white group-hover:text-indigo-400 transition">
+                            {rel.target_character?.name || 'Bilinmeyen Karakter'}
+                          </p>
                           <p className="text-[10px] text-indigo-400 capitalize font-medium">{rel.relation_type}</p>
                         </div>
                       </div>
@@ -307,7 +313,7 @@ export default function CharacterDetailPage() {
                           {rel.description}
                         </span>
                       )}
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
