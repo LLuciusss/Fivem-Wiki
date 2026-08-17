@@ -542,7 +542,7 @@ export default function EditCharacterPage() {
             />
           </div>
 
-          {/* Kaydet Butonu */}
+          {/* Kaydetme Butonu */}
           <button
             type="submit"
             disabled={saving}
