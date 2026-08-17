@@ -28,7 +28,6 @@ export default function EditCharacterPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   
   const [allCharacters, setAllCharacters] = useState<any[]>([]);
   const [characterRelations, setCharacterRelations] = useState<any[]>([]);
@@ -140,52 +139,6 @@ export default function EditCharacterPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  // Cihazdan Fotoğraf Yükleme Fonksiyonu
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setUploading(true);
-
-    try {
-      const uploadedUrls: string[] = [];
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${characterId}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        // Supabase Storage Bucket'ına Yükle ('character-images' bucket adı)
-        const { error: uploadError } = await supabase.storage
-          .from('character-images')
-          .upload(filePath, file);
-
-        if (uploadError) {
-          console.error('Yükleme Hatası:', uploadError.message);
-          alert(`Resim yüklenemedi: ${file.name}`);
-          continue;
-        }
-
-        // Yüklenen Resmin Public URL'sini Al
-        const { data: publicUrlData } = supabase.storage
-          .from('character-images')
-          .getPublicUrl(filePath);
-
-        if (publicUrlData?.publicUrl) {
-          uploadedUrls.push(publicUrlData.publicUrl);
-        }
-      }
-
-      setImageUrls((prev) => [...prev, ...uploadedUrls]);
-    } catch (err: any) {
-      alert('Dosya yüklenirken bir sorun oluştu.');
-    } finally {
-      setUploading(false);
-      e.target.value = ''; // Input'u sıfırla
-    }
   };
 
   // URL İle Fotoğraf Ekleme
@@ -306,7 +259,7 @@ export default function EditCharacterPage() {
 
         <form onSubmit={handleSubmit} className="bg-[#0e1322] border border-slate-800/90 rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl">
           
-          {/* FOTOĞRAF YÖNETİMİ BÖLÜMÜ (Çoklu Fotoğraf & Yükleme) */}
+          {/* FOTOĞRAF YÖNETİMİ BÖLÜMÜ (Sadece URL) */}
           <div className="space-y-4 pb-6 border-b border-slate-800">
             <h2 className="text-sm font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
               🖼️ Karakter Fotoğrafları ({imageUrls.length})
@@ -336,45 +289,26 @@ export default function EditCharacterPage() {
               </div>
             )}
 
-            {/* Fotoğraf Ekleme Seçenekleri (Dosya ve URL) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              {/* Cihazdan Yükleme */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300 block">
-                  📁 Cihazdan / Dosyadan Yükle
-                </label>
+            {/* URL İle Fotoğraf Ekleme Alanı */}
+            <div className="space-y-2 pt-2">
+              <label className="text-xs font-semibold text-slate-300 block">
+                🔗 Görsel URL'si İle Ekle
+              </label>
+              <div className="flex gap-2">
                 <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileUpload}
-                  disabled={uploading}
-                  className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer cursor-pointer border border-slate-800 rounded-xl bg-slate-900/50 p-1"
+                  type="url"
+                  placeholder="https://i.imgur.com/..."
+                  value={newUrlInput}
+                  onChange={(e) => setNewUrlInput(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-white outline-none"
                 />
-                {uploading && <p className="text-xs text-indigo-400">Resim yükleniyor, lütfen bekleyin...</p>}
-              </div>
-
-              {/* URL İle Ekleme */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300 block">
-                  🔗 Görsel URL'si İle Ekle
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="https://i.imgur.com/..."
-                    value={newUrlInput}
-                    onChange={(e) => setNewUrlInput(e.target.value)}
-                    className="flex-1 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-white outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddUrl}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition"
-                  >
-                    Ekle
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleAddUrl}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition"
+                >
+                  Ekle
+                </button>
               </div>
             </div>
           </div>
@@ -608,10 +542,10 @@ export default function EditCharacterPage() {
             />
           </div>
 
-          {/* Kaydetme Butonu */}
+          {/* Kaydet Butonu */}
           <button
             type="submit"
-            disabled={saving || uploading}
+            disabled={saving}
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-indigo-600/20 disabled:opacity-50 cursor-pointer"
           >
             {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
