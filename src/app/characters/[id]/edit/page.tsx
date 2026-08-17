@@ -104,10 +104,10 @@ export default function EditCharacterPage() {
         setAllCharacters(charsData);
       }
 
-      // 3. Mevcut ilişkileri çek
+      // 3. Mevcut ilişkileri çek (Doğru FK hint ile)
       const { data: relsData } = await supabase
         .from('character_relations')
-        .select('*, target_character:characters(id, name, image_url)')
+        .select('*, target_character:characters!target_character_id(id, name, image_url)')
         .eq('character_id', characterId);
 
       if (relsData) {
@@ -126,7 +126,7 @@ export default function EditCharacterPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Yeni İlişki Ekleme Fonksiyonu (Güvenli Güncellenmiş Versiyon)
+  // Yeni İlişki Ekleme Fonksiyonu
   const handleAddRelation = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!selectedTargetId) {
@@ -140,7 +140,7 @@ export default function EditCharacterPage() {
       return;
     }
 
-    // 1. Adım: Veriyi veritabanına ekle
+    // 1. Adım: Veritabanına ekle
     const { error: insertError } = await supabase
       .from('character_relations')
       .insert([
@@ -157,10 +157,10 @@ export default function EditCharacterPage() {
       return;
     }
 
-    // 2. Adım: Güncel ilişkileri veritabanından tekrar çek (join hatası almamak için en güvenli yöntem)
+    // 2. Adım: Güncel ilişkileri tekrar çek (Doğru FK hint ile)
     const { data: relsData, error: fetchError } = await supabase
       .from('character_relations')
-      .select('*, target_character:characters(id, name, image_url)')
+      .select('*, target_character:characters!target_character_id(id, name, image_url)')
       .eq('character_id', characterId);
 
     if (fetchError) {
