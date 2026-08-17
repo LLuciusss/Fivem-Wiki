@@ -127,10 +127,16 @@ export default function EditCharacterPage() {
   };
 
   // Yeni İlişki Ekleme Fonksiyonu (Çakışma Hatası Çözülmüş Hali)
-  const handleAddRelation = async (e: React.FormEvent) => {
+  const handleAddRelation = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!selectedTargetId) {
       alert('Lütfen bir karakter seçin.');
+      return;
+    }
+
+    // Kendisiyle ilişki kurmasını engelle
+    if (selectedTargetId === characterId) {
+      alert('Bir karakter kendisiyle ilişki kuramaz!');
       return;
     }
 
@@ -141,23 +147,16 @@ export default function EditCharacterPage() {
           character_id: characterId,
           target_character_id: selectedTargetId,
           relation_type: selectedRelationType,
-          description: relationDescription,
+          description: relationDescription || null,
         }
       ])
-      .select()
+      .select('*, target_character:characters(id, name, image_url)')
       .single();
 
     if (error) {
       alert('İlişki eklenirken hata oluştu: ' + error.message);
     } else if (data) {
-      const targetCharObj = allCharacters.find(c => c.id === selectedTargetId);
-      
-      const newRelationWithTarget = {
-        ...data,
-        target_character: targetCharObj
-      };
-
-      setCharacterRelations([...characterRelations, newRelationWithTarget]);
+      setCharacterRelations((prev) => [...prev, data]);
       setSelectedTargetId('');
       setRelationDescription('');
       setSelectedRelationType('arkadaş');
