@@ -94,7 +94,7 @@ export default function EditCharacterPage() {
         story: charData.story || '',
       });
 
-      
+      // 2. Sistemdeki diğer karakterleri çek (Kendisi hariç)
       const { data: charsData } = await supabase
         .from('characters')
         .select('id, name, image_url')
@@ -104,7 +104,7 @@ export default function EditCharacterPage() {
         setAllCharacters(charsData);
       }
 
-      
+      // 3. Mevcut ilişkileri çek (Doğru FK hint ile)
       const { data: relsData } = await supabase
         .from('character_relations')
         .select('*, target_character:characters!target_character_id(id, name, image_url)')
@@ -457,7 +457,7 @@ export default function EditCharacterPage() {
             />
           </div>
 
-          {/* Kaydet Butonu */}
+          {/* Kaydetme Butonu */}
           <button
             type="submit"
             disabled={saving}
