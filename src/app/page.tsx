@@ -67,7 +67,7 @@ export default async function HomePage() {
 
           </div>
 
-          <span>FIVEM <span className="text-indigo-400">KARAKTER</span></span><span>WIKI</span>
+          <span>FIVEM <span className="text-indigo-400">KARAKTER WIKI</span></span
 
          
 
