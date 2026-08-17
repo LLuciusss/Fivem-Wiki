@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     siteName: 'FiveM Wiki',
     images: [
       {
-        url: 'https://fivem-wiki.vercel.app/fivemwiki.png',
+        url: 'https://fivem-wiki.vercel.app/fivemmwiki.png',
         width: 1200,
         height: 630,
         alt: 'FiveM Wiki Önizleme Görseli',
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'FiveM Wiki',
     description: 'FiveM karakter arşivi ve hikaye yönetim sistemi.',
-    images: ['https://fivem-wiki.vercel.app/fivemwiki.png'], 
+    images: ['https://fivem-wiki.vercel.app/fivemmwiki.png'], 
   },
 };
 
