@@ -126,7 +126,7 @@ export default function EditCharacterPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Yeni İlişki Ekleme Fonksiyonu
+  // Yeni İlişki Ekleme Fonksiyonu (Çakışma Hatası Çözülmüş Hali)
   const handleAddRelation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTargetId) {
@@ -144,12 +144,20 @@ export default function EditCharacterPage() {
           description: relationDescription,
         }
       ])
-      .select('*, target_character:characters(id, name, image_url)');
+      .select()
+      .single();
 
     if (error) {
       alert('İlişki eklenirken hata oluştu: ' + error.message);
     } else if (data) {
-      setCharacterRelations([...characterRelations, data[0]]);
+      const targetCharObj = allCharacters.find(c => c.id === selectedTargetId);
+      
+      const newRelationWithTarget = {
+        ...data,
+        target_character: targetCharObj
+      };
+
+      setCharacterRelations([...characterRelations, newRelationWithTarget]);
       setSelectedTargetId('');
       setRelationDescription('');
       setSelectedRelationType('arkadaş');
